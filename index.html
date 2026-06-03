@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cumpleaños del Equipo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+    .container { max-width: 520px; margin: auto; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 32px;
+      margin-bottom: 20px;
+    }
+    .logo { font-size: 2.2rem; text-align: center; }
+    h1 { text-align: center; font-size: 1.3rem; color: #1a202c; margin: 8px 0 4px; }
+    .subtitle { text-align: center; color: #718096; font-size: 0.88rem; margin-bottom: 24px; }
+    label { display: block; font-size: 0.83rem; font-weight: 600; color: #4a5568; margin-bottom: 5px; }
+    input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 0.97rem; margin-bottom: 14px;
+      transition: border-color 0.2s; outline: none;
+    }
+    input:focus { border-color: #667eea; }
+    button {
+      width: 100%; padding: 11px; background: #667eea;
+      color: white; border: none; border-radius: 8px;
+      font-size: 0.97rem; font-weight: 600; cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #5a67d8; }
+    button:disabled { background: #a0aec0; cursor: not-allowed; }
+    .msg { margin-top: 14px; padding: 11px 14px; border-radius: 8px; font-size: 0.88rem; text-align: center; }
+    .msg.error   { background: #fff5f5; color: #c53030; }
+    .msg.success { background: #f0fff4; color: #276749; }
+
+    h2 { font-size: 1rem; color: #2d3748; margin-bottom: 16px; }
+    .bday-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 11px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;
+    }
+    .bday-item:last-child { border-bottom: none; }
+    .name { font-weight: 600; color: #1a202c; }
+    .date-label { color: #718096; font-size: 0.82rem; }
+    .badge {
+      background: #667eea; color: white; padding: 3px 10px;
+      border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge.today { background: #e53e3e; }
+    .badge.soon  { background: #dd6b20; }
+    .empty { text-align: center; color: #a0aec0; padding: 20px 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Formulario de registro -->
+  <div class="card">
+    <div class="logo">🎂</div>
+    <h1>Cumpleaños del Equipo</h1>
+    <p class="subtitle">Cargá tus datos para que nadie olvide tu cumple</p>
+
+    <label>Nombre completo</label>
+    <input type="text" id="inpName" placeholder="Ej: María González" />
+
+    <label>Email</label>
+    <input type="email" id="inpEmail" placeholder="tu@email.com" />
+
+    <label>Fecha de cumpleaños</label>
+    <input type="date" id="inpBday" />
+
+    <button id="btnSave" onclick="save()">Guardar</button>
+    <div id="msg"></div>
+  </div>
+
+  <!-- Lista de cumpleaños -->
+  <div class="card">
+    <h2>📅 Próximos cumpleaños</h2>
+    <div id="list"><div class="empty">Cargando...</div></div>
+  </div>
+
+</div>
+
+<script>
+  // ── CONFIGURACIÓN ─────────────────────────────────────────────
+  const SUPABASE_URL      = 'https://gsozzhpkxbjooodtkgrz.supabase.co'
+  const SUPABASE_ANON_KEY = 'sb_publishable_gBKy7Y7_E0av_fGdBoOGjA_uiwMAu5C'
+  // ─────────────────────────────────────────────────────────────
+
+  const { createClient } = supabase
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+  async function save() {
+    const name  = document.getElementById('inpName').value.trim()
+    const email = document.getElementById('inpEmail').value.trim()
+    const bday  = document.getElementById('inpBday').value
+    const btn   = document.getElementById('btnSave')
+
+    if (!name || !email || !bday) return showMsg('Completá todos los campos', 'error')
+
+    btn.disabled = true
+    btn.textContent = 'Guardando...'
+
+    // Upsert por email (si ya existe, actualiza fecha)
+    const { error } = await sb.from('members').upsert(
+      { name, email, birthday: bday },
+      { onConflict: 'email' }
+    )
+
+    btn.disabled = false
+    btn.textContent = 'Guardar'
+
+    if (error) return showMsg('Error: ' + error.message, 'error')
+
+    showMsg('✓ ¡Datos guardados!', 'success')
+    document.getElementById('inpName').value = ''
+    document.getElementById('inpEmail').value = ''
+    document.getElementById('inpBday').value = ''
+    loadList()
+  }
+
+  function showMsg(text, type) {
+    const el = document.getElementById('msg')
+    el.innerHTML = `<div class="msg ${type}">${text}</div>`
+    setTimeout(() => el.innerHTML = '', 4000)
+  }
+
+  async function loadList() {
+    const { data, error } = await sb.from('members').select('name, birthday')
+    if (error || !data) {
+      document.getElementById('list').innerHTML = '<div class="empty">No se pudo cargar la lista</div>'
+      return
+    }
+    renderList(data)
+  }
+
+  function renderList(members) {
+    const today = new Date()
+    const todayMD = `${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+
+    const sorted = members
+      .filter(m => m.birthday)
+      .map(m => {
+        const [, mm, dd] = m.birthday.split('-')
+        const md = `${mm}-${dd}`
+        const next = new Date(today.getFullYear(), parseInt(mm)-1, parseInt(dd))
+        if (next < today) next.setFullYear(today.getFullYear() + 1)
+        const days = Math.round((next - today) / 86400000)
+        return { ...m, md, days }
+      })
+      .sort((a, b) => a.days - b.days)
+
+    if (!sorted.length) {
+      document.getElementById('list').innerHTML = '<div class="empty">Todavía no hay nadie cargado</div>'
+      return
+    }
+
+    const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+
+    document.getElementById('list').innerHTML = sorted.map(m => {
+      const [, mm, dd] = m.birthday.split('-')
+      const dateStr = `${parseInt(dd)} de ${months[parseInt(mm)-1]}`
+      const isToday = m.md === todayMD
+      const badgeClass = isToday ? 'badge today' : m.days <= 7 ? 'badge soon' : 'badge'
+      const label = isToday ? '🎉 ¡Hoy!' : m.days === 1 ? 'Mañana' : `En ${m.days} días`
+      return `<div class="bday-item">
+        <div>
+          <div class="name">${m.name}</div>
+          <div class="date-label">${dateStr}</div>
+        </div>
+        <span class="${badgeClass}">${label}</span>
+      </div>`
+    }).join('')
+  }
+
+  loadList()
+</script>
+</body>
+</html>
