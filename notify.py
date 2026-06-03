@@ -49,9 +49,10 @@ def get_all_profiles() -> list[dict]:
 
 
 def get_todays_birthdays(profiles: list[dict]) -> list[dict]:
-    """Filtra los perfiles cuyo cumpleaños es hoy (ignora el año)."""
-    today = date.today()
-    mm_dd = f"{today.month:02d}-{today.day:02d}"
+    """Filtra los perfiles cuyo cumpleaños es MAÑANA (aviso con un día de anticipación)."""
+    from datetime import timedelta
+    tomorrow = date.today() + timedelta(days=1)
+    mm_dd = f"{tomorrow.month:02d}-{tomorrow.day:02d}"
     return [p for p in profiles if p.get("birthday") and p["birthday"][5:] == mm_dd]
 
 
@@ -93,22 +94,24 @@ def send_email(recipients: list[str], birthday_person: dict):
         print("SMTP no configurado, saltando email.")
         return
 
+    from datetime import timedelta
+    tomorrow = date.today() + timedelta(days=1)
     name = birthday_person.get("name") or birthday_person.get("email")
-    subject = f"🎂 Hoy es el cumpleaños de {name}!"
+    subject = f"🎂 Mañana es el cumpleaños de {name}!"
 
     body_html = f"""
     <div style="font-family:Segoe UI,sans-serif;max-width:500px;margin:auto">
       <div style="background:#667eea;padding:30px;border-radius:12px 12px 0 0;text-align:center">
         <div style="font-size:3rem">🎂</div>
-        <h1 style="color:white;margin:8px 0">¡Feliz cumpleaños!</h1>
+        <h1 style="color:white;margin:8px 0">¡Cumpleaños mañana!</h1>
       </div>
       <div style="background:#f7f7f7;padding:24px;border-radius:0 0 12px 12px">
         <p style="font-size:1.1rem;color:#333">
-          Hoy, <strong>{date.today().strftime('%d/%m/%Y')}</strong>,
+          Mañana, <strong>{tomorrow.strftime('%d/%m/%Y')}</strong>,
           es el cumpleaños de <strong style="color:#667eea">{name}</strong>.
         </p>
         <p style="color:#666;margin-top:16px">
-          ¡No te olvides de felicitarlo/a! 🎉
+          ¡Acordate de felicitarlo/a! 🎉
         </p>
         <p style="color:#999;margin-top:20px;font-size:0.85rem">
           📅 El archivo adjunto (.ics) te permite agregar este cumpleaños
@@ -162,20 +165,20 @@ def send_teams(birthday_person: dict):
                     "body": [
                         {
                             "type": "TextBlock",
-                            "text": "🎂 ¡Cumpleaños!",
+                            "text": "🎂 ¡Cumpleaños mañana!",
                             "weight": "Bolder",
                             "size": "ExtraLarge",
                             "color": "Accent",
                         },
                         {
                             "type": "TextBlock",
-                            "text": f"Hoy es el cumpleaños de **{name}** 🎉",
+                            "text": f"Mañana es el cumpleaños de **{name}** 🎉",
                             "wrap": True,
                             "size": "Large",
                         },
                         {
                             "type": "TextBlock",
-                            "text": f"Fecha: {date.today().strftime('%d/%m/%Y')}",
+                            "text": f"Fecha: {(date.today() + __import__('datetime').timedelta(days=1)).strftime('%d/%m/%Y')}",
                             "isSubtle": True,
                         },
                     ],
